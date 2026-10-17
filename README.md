@@ -2,7 +2,7 @@
 
 A chat app for asking questions about NFL stats and getting answers grounded in real data, not the model's memory.
 
-> **Status:** early development. The data pipeline, a data-check page and the model connection work. The chat itself is not built yet. See [PLAN.md](PLAN.md) for the roadmap.
+> **Status:** early development. The data pipeline, a data-check page, the model connection and the database tools work. The chat itself is not built yet. See [PLAN.md](PLAN.md) for the roadmap.
 
 ## How it works
 
@@ -66,12 +66,24 @@ npm run dev
 
 Then open http://localhost:4321. Try the player `Mahomes` with season `2023`, or the team `KC` (teams use abbreviations like `KC`, `SF`, `BUF`).
 
+## Tests
+
+```bash
+npm test
+```
+
+Checks the database tools against real results (e.g. Mahomes' 2023 totals, the Super Bowl LVIII score, 2023 league leaders). Requires `data/nfl.db`.
+
 ## Project layout
 
 ```
 scripts/load_data.py    Downloads nflverse data and builds the SQLite database
 src/lib/db.ts           Read-only database helper
 src/lib/model.ts        Picks the AI provider and model from .env (swappable)
+src/lib/queries.ts      Query functions behind the tools
+src/lib/tools.ts        Tools the chat model can call (find_player, get_player_season_stats, ...)
+src/lib/schema.ts       Plain-English description of the database for the model
+src/lib/tools.test.ts   Known-answer tests (real NFL results vs. the database)
 src/pages/index.astro   Data check page
 data/                   Database and downloaded files (gitignored)
 PLAN.md                 Architecture and build order
@@ -83,7 +95,7 @@ PLAN.md                 Architecture and build order
 2. ✅ Astro project with the Node adapter
 3. ✅ Data check page
 4. ✅ Model config (Gemini by default, swappable provider)
-5. Database-backed tools (player stats, game results, standings)
+5. ✅ Database-backed tools (player stats, game logs, games, standings, leaders, read-only SQL)
 6. `/api/chat` route with streaming
 7. Chat page
 8. Test with known-answer questions

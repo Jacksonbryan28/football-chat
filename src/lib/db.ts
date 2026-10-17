@@ -6,7 +6,7 @@ const db = new DatabaseSync(path.join(process.cwd(), 'data', 'nfl.db'), { readOn
 
 export type Row = Record<string, string | number | null>;
 
-export function query(sql: string, ...params: (string | number)[]): Row[] {
+export function query(sql: string, ...params: (string | number | null)[]): Row[] {
   return db.prepare(sql).all(...params) as Row[];
 }
 
