@@ -2,7 +2,7 @@
 
 A chat app for asking questions about NFL stats and getting answers grounded in real data, not the model's memory.
 
-> **Status:** early development. The data pipeline and a data-check page work. The chat itself is not built yet. See [PLAN.md](PLAN.md) for the roadmap.
+> **Status:** early development. The data pipeline, a data-check page and the model connection work. The chat itself is not built yet. See [PLAN.md](PLAN.md) for the roadmap.
 
 ## How it works
 
@@ -47,7 +47,17 @@ python3 -m venv .venv
 
 This takes about a minute and writes `data/nfl.db` plus a cache of downloaded files in `data/raw/`. To load fewer seasons, add `--start 2015`.
 
-### 2. Run the app
+### 2. Add your API key
+
+Copy the example file and put in a free Gemini key from [Google AI Studio](https://aistudio.google.com):
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and replace `paste-your-key-here`. The file is gitignored. Free-tier prompts may be used by Google to improve their products, so don't send private data.
+
+### 3. Run the app
 
 ```bash
 npm install
@@ -61,6 +71,7 @@ Then open http://localhost:4321. Try the player `Mahomes` with season `2023`, or
 ```
 scripts/load_data.py    Downloads nflverse data and builds the SQLite database
 src/lib/db.ts           Read-only database helper
+src/lib/model.ts        Picks the AI provider and model from .env (swappable)
 src/pages/index.astro   Data check page
 data/                   Database and downloaded files (gitignored)
 PLAN.md                 Architecture and build order
@@ -71,7 +82,7 @@ PLAN.md                 Architecture and build order
 1. ✅ Data loader and SQLite database
 2. ✅ Astro project with the Node adapter
 3. ✅ Data check page
-4. Model config (Gemini by default, swappable provider)
+4. ✅ Model config (Gemini by default, swappable provider)
 5. Database-backed tools (player stats, game results, standings)
 6. `/api/chat` route with streaming
 7. Chat page
