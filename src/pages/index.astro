@@ -1,146 +1,328 @@
 ---
-import { tableCounts, searchPlayerSeasons, searchGames } from '../lib/db';
+export const prerender = true;
 
-export const prerender = false;
-
-const params = Astro.url.searchParams;
-const player = (params.get('player') ?? '').trim();
-const team = (params.get('team') ?? '').trim();
-const seasonRaw = parseInt(params.get('season') ?? '', 10);
-const season = Number.isNaN(seasonRaw) ? null : seasonRaw;
-
-const counts = tableCounts();
-const playerRows = player ? searchPlayerSeasons(player, season) : [];
-const gameRows = team ? searchGames(team, season) : [];
+const examples = [
+  'How many passing yards did Patrick Mahomes have in 2023?',
+  'Who won Super Bowl LVIII and what was the score?',
+  'Who led the NFL in rushing yards last season?',
+  'Show the 2022 NFC East standings',
+];
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Ask questions about NFL stats and get answers from real data." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Data check</title>
+    <title>football-chat</title>
   </head>
   <body>
-    <main>
-      <h1>Data check</h1>
-      <p class="note">A rough page to confirm the NFL database works. Data from nflverse.</p>
+    <div class="app">
+      <header>
+        <h1>football-chat</h1>
+        <p>Ask about NFL stats. Answers come from real data, not memory.</p>
+      </header>
 
-      <section>
-        <h2>What's in the database</h2>
-        <table>
-          <thead><tr><th>Table</th><th>Rows</th></tr></thead>
-          <tbody>
-            {counts.map((c) => (
-              <tr><td>{c.table}</td><td>{Number(c.rows).toLocaleString()}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <main id="messages" aria-live="polite" aria-label="Conversation">
+        <div id="empty" class="empty">
+          <p class="empty-title">Try asking</p>
+          <div class="examples">
+            {examples.map((q) => <button type="button" class="example" data-question={q}>{q}</button>)}
+          </div>
+        </div>
+      </main>
 
-      <section>
-        <h2>Search</h2>
-        <form method="get">
-          <label>Player <input name="player" value={player} placeholder="Patrick Mahomes" /></label>
-          <label>Team <input name="team" value={team} placeholder="KC" size="5" /></label>
-          <label>Season <input name="season" value={season ?? ''} placeholder="2023" size="6" /></label>
-          <button type="submit">Search</button>
-        </form>
-      </section>
+      <form id="form" autocomplete="off">
+        <label for="input" class="sr-only">Your question</label>
+        <textarea id="input" rows="1" placeholder="Ask about NFL stats…" maxlength="2000"></textarea>
+        <button type="submit" id="send">Send</button>
+      </form>
 
-      {player && (
-        <section>
-          <h2>Player regular-season totals ({playerRows.length})</h2>
-          {playerRows.length === 0 ? <p>No matches.</p> : (
-            <div class="scroll">
-              <table>
-                <thead>
-                  <tr>{Object.keys(playerRows[0]).map((k) => <th>{k}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {playerRows.map((row) => (
-                    <tr>{Object.values(row).map((v) => <td>{v ?? '–'}</td>)}</tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-
-      {team && (
-        <section>
-          <h2>Games for {team.toUpperCase()} ({gameRows.length})</h2>
-          {gameRows.length === 0 ? <p>No matches. Use team abbreviations like KC, SF, BUF.</p> : (
-            <div class="scroll">
-              <table>
-                <thead>
-                  <tr>{Object.keys(gameRows[0]).map((k) => <th>{k}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {gameRows.map((row) => (
-                    <tr>{Object.values(row).map((v) => <td>{v ?? '–'}</td>)}</tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-    </main>
+      <footer>
+        Data from <a href="https://github.com/nflverse/nflverse-data">nflverse</a> · <a href="/data">Data check</a>
+      </footer>
+    </div>
   </body>
 </html>
 
-<style>
+<script>
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
+
+  type Role = 'user' | 'assistant';
+  interface Tool { name: string; input: Record<string, unknown> }
+
+  const messagesEl = document.getElementById('messages') as HTMLElement;
+  const emptyEl = document.getElementById('empty') as HTMLElement;
+  const form = document.getElementById('form') as HTMLFormElement;
+  const input = document.getElementById('input') as HTMLTextAreaElement;
+  const sendBtn = document.getElementById('send') as HTMLButtonElement;
+
+  const history: { role: Role; content: string }[] = [];
+  let busy = false;
+
+  function scrollToBottom() {
+    window.scrollTo({ top: document.body.scrollHeight });
+  }
+
+  function addMessage(role: Role, text = '') {
+    emptyEl.hidden = true;
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (role === 'user') bubble.textContent = text;
+    wrap.append(bubble);
+    messagesEl.append(wrap);
+    scrollToBottom();
+    return { wrap, bubble };
+  }
+
+  function renderMarkdown(el: HTMLElement, text: string) {
+    el.innerHTML = DOMPurify.sanitize(marked.parse(text, { async: false }) as string);
+  }
+
+  function chipLabel(tool: Tool) {
+    const details = Object.values(tool.input).filter((v) => v !== undefined).join(' · ');
+    return `${tool.name.replace(/_/g, ' ')}${details ? ' · ' + details : ''}`;
+  }
+
+  function renderSources(wrap: HTMLElement, tools: Tool[]) {
+    wrap.querySelector('.sources')?.remove();
+    if (tools.length === 0) return;
+    const row = document.createElement('div');
+    row.className = 'sources';
+    const label = document.createElement('span');
+    label.textContent = 'Data used:';
+    row.append(label);
+    for (const tool of tools) {
+      const chip = document.createElement('code');
+      chip.textContent = chipLabel(tool);
+      chip.title = JSON.stringify(tool.input);
+      row.append(chip);
+    }
+    wrap.append(row);
+  }
+
+  async function ask(question: string) {
+    if (busy || !question.trim()) return;
+    busy = true;
+    sendBtn.disabled = true;
+    input.value = '';
+    input.style.height = '';
+
+    history.push({ role: 'user', content: question });
+    addMessage('user', question);
+    const { wrap, bubble } = addMessage('assistant');
+    bubble.classList.add('thinking');
+    bubble.textContent = 'Thinking…';
+
+    let text = '';
+    let failed = false;
+    const tools: Tool[] = [];
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history.slice(-20) }),
+      });
+      if (!res.ok || !res.body) throw new Error('bad response');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const handle = (line: string) => {
+        if (!line.trim()) return;
+        const event = JSON.parse(line);
+        if (event.type === 'text') {
+          text += event.text;
+        } else if (event.type === 'reset') {
+          text = '';
+        } else if (event.type === 'tool') {
+          tools.push({ name: event.name, input: event.input ?? {} });
+          bubble.textContent = 'Looking that up…';
+        } else if (event.type === 'error') {
+          failed = true;
+          bubble.classList.remove('thinking');
+          bubble.classList.add('error');
+          bubble.textContent = event.message;
+        }
+        if (text && !failed) {
+          bubble.classList.remove('thinking');
+          renderMarkdown(bubble, text);
+        }
+        scrollToBottom();
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        lines.forEach(handle);
+      }
+      handle(buffer);
+    } catch {
+      failed = true;
+      bubble.classList.remove('thinking');
+      bubble.classList.add('error');
+      bubble.textContent = "Couldn't reach the server. Check that it's running and try again.";
+    }
+
+    if (failed || !text) {
+      if (!failed) {
+        bubble.classList.remove('thinking');
+        bubble.classList.add('error');
+        bubble.textContent = 'I did not get an answer. Please try again.';
+      }
+      // Undo this turn so a retry doesn't send a dangling question.
+      history.pop();
+      input.value = question;
+    } else {
+      history.push({ role: 'assistant', content: text });
+      renderSources(wrap, tools);
+    }
+
+    busy = false;
+    sendBtn.disabled = false;
+    input.focus();
+    scrollToBottom();
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    ask(input.value);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.example').forEach((btn) => {
+    btn.addEventListener('click', () => ask(btn.dataset.question ?? ''));
+  });
+
+  input.focus();
+</script>
+
+<style is:global>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --text: #1b1d1f;
+    --muted: #6a6f76;
+    --border: #e3e3de;
+    --accent: #1f5f3a;
+    --accent-text: #ffffff;
+    --user-bg: #1f5f3a;
+    --user-text: #ffffff;
+    --error-bg: #fdecea;
+    --error-text: #8a1f17;
+    --code-bg: #f0f0eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141615;
+      --surface: #1e211f;
+      --text: #ececE8;
+      --muted: #9aa09c;
+      --border: #2e322f;
+      --accent: #4fae78;
+      --accent-text: #0e1410;
+      --user-bg: #2d6a47;
+      --user-text: #ffffff;
+      --error-bg: #3a1c19;
+      --error-text: #f5b5ae;
+      --code-bg: #262a27;
+    }
+  }
+
+  * { box-sizing: border-box; }
   body {
-    font-family: system-ui, sans-serif;
     margin: 0;
-    color: #1a1a1a;
-    background: #fafafa;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif;
   }
-  main {
-    max-width: 960px;
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+
+  .app {
+    max-width: 720px;
+    min-height: 100dvh;
     margin: 0 auto;
-    padding: 2rem 1rem 4rem;
-  }
-  .note {
-    color: #666;
-  }
-  section {
-    margin-top: 2rem;
-  }
-  form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: end;
-  }
-  label {
+    padding: 0 16px;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.85rem;
   }
-  input,
-  button {
-    font: inherit;
-    padding: 0.4rem 0.6rem;
+  header { padding: 28px 0 12px; }
+  h1 { margin: 0; font-size: 1.4rem; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; }
+
+  main { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 12px 0 24px; }
+
+  .empty { margin-top: 12px; }
+  .empty[hidden] { display: none; }
+  .empty-title { margin: 0 0 8px; color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .examples { display: grid; gap: 8px; }
+  .example {
+    text-align: left; font: inherit; padding: 12px 14px; cursor: pointer;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 12px;
   }
-  .scroll {
-    overflow-x: auto;
+  .example:hover { border-color: var(--accent); }
+
+  .msg { display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
+  .msg.user { align-items: flex-end; }
+  .bubble { padding: 10px 14px; border-radius: 16px; overflow-wrap: anywhere; max-width: 92%; }
+  .msg.user .bubble { background: var(--user-bg); color: var(--user-text); border-bottom-right-radius: 4px; white-space: pre-wrap; }
+  .msg.assistant .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble.thinking { color: var(--muted); }
+  .bubble.error { background: var(--error-bg); color: var(--error-text); border-color: transparent; }
+
+  .bubble > :first-child { margin-top: 0; }
+  .bubble > :last-child { margin-bottom: 0; }
+  .bubble h1, .bubble h2, .bubble h3 { font-size: 1rem; margin: 12px 0 4px; }
+  .bubble ul, .bubble ol { padding-left: 1.3em; margin: 6px 0; }
+  .bubble table { border-collapse: collapse; font-size: 0.9rem; display: block; overflow-x: auto; }
+  .bubble th, .bubble td { padding: 4px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+
+  .sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); max-width: 92%; }
+  .sources code { background: var(--code-bg); padding: 2px 8px; border-radius: 999px; font: inherit; }
+
+  form {
+    position: sticky; bottom: 0; display: flex; gap: 8px; align-items: flex-end;
+    padding: 12px 0; background: linear-gradient(to top, var(--bg) 75%, transparent);
   }
-  table {
-    border-collapse: collapse;
-    font-size: 0.9rem;
+  textarea {
+    flex: 1; resize: none; font: inherit; color: var(--text); background: var(--surface);
+    padding: 11px 14px; border: 1px solid var(--border); border-radius: 14px; max-height: 160px;
   }
-  th,
-  td {
-    text-align: left;
-    padding: 0.35rem 0.75rem;
-    border-bottom: 1px solid #ddd;
-    white-space: nowrap;
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  #send {
+    font: inherit; font-weight: 600; padding: 11px 18px; border: 0; border-radius: 14px; cursor: pointer;
+    background: var(--accent); color: var(--accent-text);
   }
-  th {
-    background: #eee;
+  #send:disabled { opacity: 0.5; cursor: default; }
+
+  footer { padding: 4px 0 20px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+  footer a { color: inherit; }
+
+  @media (min-width: 640px) {
+    .examples { grid-template-columns: 1fr 1fr; }
   }
 </style>

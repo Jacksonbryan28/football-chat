@@ -2,7 +2,7 @@
 
 A chat app for asking questions about NFL stats and getting answers grounded in real data, not the model's memory.
 
-> **Status:** early development. The data pipeline, a data-check page, the model connection and the database tools work. The chat itself is not built yet. See [PLAN.md](PLAN.md) for the roadmap.
+> **Status:** early development. The data pipeline, a data-check page, the model connection, the database tools and the chat all work. The chat itself is not built yet. See [PLAN.md](PLAN.md) for the roadmap.
 
 ## How it works
 
@@ -28,7 +28,9 @@ nflverse (online) → Python loader → SQLite file → Astro server (/api/chat)
   | `player_week_stats` | Weekly player stats (passing, rushing, receiving, defense, and more) |
   | `team_week_stats` | Weekly team stats |
 
-- **Data check page** (the home page): shows row counts for each table and lets you search a player's regular-season totals or a team's games, to confirm the data looks right.
+- **Chat** (the home page): ask NFL questions in plain English. The model looks up every number with the database tools, shows which data it used, and says so when the data can't answer.
+
+- **Data check page** (`/data`): shows row counts for each table and lets you search a player's regular-season totals or a team's games, to confirm the data looks right.
 
 ## Getting started
 
@@ -64,7 +66,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:4321. Try the player `Mahomes` with season `2023`, or the team `KC` (teams use abbreviations like `KC`, `SF`, `BUF`).
+Then open http://localhost:4321 and ask a question, e.g. "Who led the NFL in rushing yards in 2023?". The data check page at http://localhost:4321/data lets you search the raw tables (teams use abbreviations like `KC`, `SF`, `BUF`).
 
 ## Tests
 
@@ -84,7 +86,10 @@ src/lib/queries.ts      Query functions behind the tools
 src/lib/tools.ts        Tools the chat model can call (find_player, get_player_season_stats, ...)
 src/lib/schema.ts       Plain-English description of the database for the model
 src/lib/tools.test.ts   Known-answer tests (real NFL results vs. the database)
-src/pages/index.astro   Data check page
+src/pages/index.astro   Chat page
+src/pages/api/chat.ts   Chat route: streams the model's answer and tool use
+src/pages/data.astro    Data check page
+src/lib/prompt.ts       System prompt (answer only from tool results)
 data/                   Database and downloaded files (gitignored)
 PLAN.md                 Architecture and build order
 ```
@@ -96,9 +101,9 @@ PLAN.md                 Architecture and build order
 3. ✅ Data check page
 4. ✅ Model config (Gemini by default, swappable provider)
 5. ✅ Database-backed tools (player stats, game logs, games, standings, leaders, read-only SQL)
-6. `/api/chat` route with streaming
-7. Chat page
-8. Test with known-answer questions
+6. ✅ `/api/chat` route with streaming
+7. ✅ Chat page
+8. More known-answer questions run through the model, plus public-deployment safeguards (rate limiting)
 
 ## Data and attribution
 
