@@ -1,16 +1,146 @@
 ---
+import { tableCounts, searchPlayerSeasons, searchGames } from '../lib/db';
+
+export const prerender = false;
+
+const params = Astro.url.searchParams;
+const player = (params.get('player') ?? '').trim();
+const team = (params.get('team') ?? '').trim();
+const seasonRaw = parseInt(params.get('season') ?? '', 10);
+const season = Number.isNaN(seasonRaw) ? null : seasonRaw;
+
+const counts = tableCounts();
+const playerRows = player ? searchPlayerSeasons(player, season) : [];
+const gameRows = team ? searchGames(team, season) : [];
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Data check</title>
+  </head>
+  <body>
+    <main>
+      <h1>Data check</h1>
+      <p class="note">A rough page to confirm the NFL database works. Data from nflverse.</p>
+
+      <section>
+        <h2>What's in the database</h2>
+        <table>
+          <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+          <tbody>
+            {counts.map((c) => (
+              <tr><td>{c.table}</td><td>{Number(c.rows).toLocaleString()}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Search</h2>
+        <form method="get">
+          <label>Player <input name="player" value={player} placeholder="Patrick Mahomes" /></label>
+          <label>Team <input name="team" value={team} placeholder="KC" size="5" /></label>
+          <label>Season <input name="season" value={season ?? ''} placeholder="2023" size="6" /></label>
+          <button type="submit">Search</button>
+        </form>
+      </section>
+
+      {player && (
+        <section>
+          <h2>Player regular-season totals ({playerRows.length})</h2>
+          {playerRows.length === 0 ? <p>No matches.</p> : (
+            <div class="scroll">
+              <table>
+                <thead>
+                  <tr>{Object.keys(playerRows[0]).map((k) => <th>{k}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {playerRows.map((row) => (
+                    <tr>{Object.values(row).map((v) => <td>{v ?? '–'}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {team && (
+        <section>
+          <h2>Games for {team.toUpperCase()} ({gameRows.length})</h2>
+          {gameRows.length === 0 ? <p>No matches. Use team abbreviations like KC, SF, BUF.</p> : (
+            <div class="scroll">
+              <table>
+                <thead>
+                  <tr>{Object.keys(gameRows[0]).map((k) => <th>{k}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {gameRows.map((row) => (
+                    <tr>{Object.values(row).map((v) => <td>{v ?? '–'}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+    </main>
+  </body>
 </html>
+
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    color: #1a1a1a;
+    background: #fafafa;
+  }
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+  }
+  .note {
+    color: #666;
+  }
+  section {
+    margin-top: 2rem;
+  }
+  form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: end;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+  }
+  input,
+  button {
+    font: inherit;
+    padding: 0.4rem 0.6rem;
+  }
+  .scroll {
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.35rem 0.75rem;
+    border-bottom: 1px solid #ddd;
+    white-space: nowrap;
+  }
+  th {
+    background: #eee;
+  }
+</style>
