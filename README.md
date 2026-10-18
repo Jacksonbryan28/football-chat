@@ -103,7 +103,9 @@ PLAN.md                 Architecture and build order
 5. ✅ Database-backed tools (player stats, game logs, games, standings, leaders, read-only SQL)
 6. ✅ `/api/chat` route with streaming
 7. ✅ Chat page
-8. More known-answer questions run through the model, plus public-deployment safeguards (rate limiting)
+8. Model-level test set, design polish, public-deployment safeguards (rate limiting), a hosting choice and a data refresh schedule
+
+See [PLAN.md](PLAN.md) for the full list of next steps.
 
 ## Data and attribution
 
