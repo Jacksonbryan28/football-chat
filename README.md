@@ -12,7 +12,7 @@ nflverse (online) → Python loader → SQLite file → Astro server (/api/chat)
 
 1. **Data.** Free NFL stats from [nflverse](https://github.com/nflverse/nflverse-data).
 2. **Loader.** `scripts/load_data.py` downloads the files and builds a local SQLite database (`data/nfl.db`).
-3. **Server.** An Astro app (Node adapter) will expose a chat route that gives a language model tools for querying the database. The model writes answers from the rows those tools return, so stats come from the data rather than from memory.
+3. **Server.** An Astro app (Node adapter, with React, Tailwind and shadcn/ui for the interface) will expose a chat route that gives a language model tools for querying the database. The model writes answers from the rows those tools return, so stats come from the data rather than from memory.
 4. **Model.** Gemini's free tier to start, behind a provider abstraction so it can be swapped for Claude, a local model, or another provider.
 
 ## What works today
@@ -86,7 +86,10 @@ src/lib/queries.ts      Query functions behind the tools
 src/lib/tools.ts        Tools the chat model can call (find_player, get_player_season_stats, ...)
 src/lib/schema.ts       Plain-English description of the database for the model
 src/lib/tools.test.ts   Known-answer tests (real NFL results vs. the database)
-src/pages/index.astro   Chat page
+src/pages/index.astro   Chat page shell (renders the React chat)
+src/components/Chat.tsx The chat UI (React)
+src/components/ui/      shadcn components (button, textarea, badge, skeleton)
+src/styles/global.css   Tailwind, theme tokens and markdown styles
 src/pages/api/chat.ts   Chat route: streams the model's answer and tool use
 src/pages/data.astro    Data check page
 src/lib/prompt.ts       System prompt (answer only from tool results)
