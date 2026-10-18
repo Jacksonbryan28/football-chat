@@ -87,7 +87,9 @@ src/lib/tools.ts        Tools the chat model can call (find_player, get_player_s
 src/lib/schema.ts       Plain-English description of the database for the model
 src/lib/tools.test.ts   Known-answer tests (real NFL results vs. the database)
 src/pages/index.astro   Chat page shell (renders the React chat)
-src/components/Chat.tsx The chat UI (React)
+src/components/Chat.tsx The chat screen: owns the input box, wires the pieces together
+src/components/chat/    The chat's pieces: useChatStream (streaming and state), MessageList,
+                        MessageBubble, SourceChips, Composer, ExampleQuestions, header and footer
 src/components/ui/      shadcn components (button, textarea, badge, skeleton)
 src/styles/global.css   Tailwind, theme tokens and markdown styles
 src/pages/api/chat.ts   Chat route: streams the model's answer and tool use
