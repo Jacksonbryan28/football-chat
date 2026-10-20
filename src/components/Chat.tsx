@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChatFooter } from './chat/ChatFooter';
 import { ChatHeader } from './chat/ChatHeader';
 import { Composer } from './chat/Composer';
@@ -13,6 +13,13 @@ export default function Chat() {
   const { messages, busy, send } = useChatStream();
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // The page is server-rendered before React takes over. Text typed (or restored by
+  // the browser) in that gap is in the box but not in state, so adopt it on startup.
+  useEffect(() => {
+    const typed = inputRef.current?.value;
+    if (typed) setInput(typed);
+  }, []);
 
   async function submit(question: string) {
     const text = question.trim();
