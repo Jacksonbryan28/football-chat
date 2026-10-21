@@ -6,6 +6,7 @@ import type { Message } from './types';
 //   text    a piece of the answer
 //   reset   the model is about to call a tool; drop any text so far
 //   tool    a tool was used (shown as a "Data used" chip)
+//   teams   team abbreviations the lookup is about (colors the loading helmet)
 //   error   something went wrong; message is safe to show
 export function useChatStream() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -15,14 +16,14 @@ export function useChatStream() {
   async function send(text: string): Promise<boolean> {
     setBusy(true);
 
-    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text, tools: [], status: 'done' };
+    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text, tools: [], teams: [], status: 'done' };
     const botId = crypto.randomUUID();
     const history = [...messages, userMsg]
       .filter((m) => m.status === 'done')
       .map(({ role, content }) => ({ role, content }))
       .slice(-20);
 
-    setMessages((prev) => [...prev, userMsg, { id: botId, role: 'assistant', content: '', tools: [], status: 'pending' }]);
+    setMessages((prev) => [...prev, userMsg, { id: botId, role: 'assistant', content: '', tools: [], teams: [], status: 'pending' }]);
 
     const patchBot = (fn: (m: Message) => Message) =>
       setMessages((prev) => prev.map((m) => (m.id === botId ? fn(m) : m)));
@@ -62,6 +63,8 @@ export function useChatStream() {
           patchBot((m) => ({ ...m, content: '', status: 'pending' }));
         } else if (event.type === 'tool') {
           patchBot((m) => ({ ...m, tools: [...m.tools, { name: event.name, input: event.input ?? {} }] }));
+        } else if (event.type === 'teams') {
+          patchBot((m) => ({ ...m, teams: event.teams }));
         } else if (event.type === 'error') {
           failed = true;
           fail(event.message);

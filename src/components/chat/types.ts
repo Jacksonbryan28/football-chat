@@ -11,5 +11,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   tools: Tool[];
+  // teams the current lookup is about, as abbreviations (drives the loading helmet)
+  teams: string[];
   status: MessageStatus;
 }

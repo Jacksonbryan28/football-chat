@@ -142,3 +142,32 @@
   .markdown th, .markdown td { padding: 0.25rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   .markdown code { font-family: ui-monospace, monospace; font-size: 0.85em; background: var(--muted); padding: 0.1em 0.35em; border-radius: 0.3em; }
 }
+
+/* Team helmet: color fades and loading motion (see src/components/TeamHelmet.tsx). */
+@layer components {
+  .helmet-fill { transition: fill 600ms ease; }
+  .helmet-stroke { transition: stroke 600ms ease; }
+
+  .helmet-bob { animation: helmet-bob 1.1s ease-in-out infinite; }
+  .helmet-clash { animation: helmet-clash 1.3s ease-in-out infinite; }
+  .helmet-clash.helmet-flip { animation-name: helmet-clash-flip; }
+
+  @keyframes helmet-bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-4px) rotate(-4deg); }
+  }
+  /* lunge toward the other helmet, hold a beat, ease back */
+  @keyframes helmet-clash {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    40%, 55% { transform: translateX(5px) rotate(3deg); }
+  }
+  @keyframes helmet-clash-flip {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    40%, 55% { transform: translateX(-5px) rotate(-3deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .helmet-bob, .helmet-clash { animation: none; }
+    .helmet-fill, .helmet-stroke { transition: none; }
+  }
+}

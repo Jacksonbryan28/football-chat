@@ -1,0 +1,47 @@
+---
+// Temporary design sandbox: every team's helmet, plus the loading animations.
+import '../styles/global.css';
+import { TeamHelmet } from '../components/TeamHelmet';
+import { TEAM_COLORS } from '../lib/teamColors';
+
+export const prerender = true;
+const teams = Object.entries(TEAM_COLORS);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Helmets</title>
+    <script is:inline>
+      const media = matchMedia('(prefers-color-scheme: dark)');
+      const apply = () => document.documentElement.classList.toggle('dark', media.matches);
+      apply();
+      media.addEventListener('change', apply);
+    </script>
+  </head>
+  <body class="p-6">
+    <h1 class="mb-4 text-xl font-semibold">Helmets</h1>
+
+    <h2 class="mb-2 text-sm font-medium text-muted-foreground">Loading states</h2>
+    <div class="mb-8 flex flex-wrap items-center gap-10">
+      <div class="flex items-center gap-3"><TeamHelmet size={64} animation="bob" /> <span class="text-sm">thinking</span></div>
+      <div class="flex items-center gap-3"><TeamHelmet team="KC" size={64} animation="bob" /> <span class="text-sm">one team</span></div>
+      <div class="flex items-center gap-4">
+        <TeamHelmet team="KC" size={64} animation="clash" />
+        <TeamHelmet team="SF" size={64} animation="clash" flip />
+        <span class="text-sm">matchup</span>
+      </div>
+    </div>
+
+    <h2 class="mb-2 text-sm font-medium text-muted-foreground">All teams</h2>
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+      {teams.map(([abbr, t]) => (
+        <div class="flex flex-col items-center gap-1 rounded-xl border p-3 text-center">
+          <TeamHelmet team={abbr} size={72} label={`${t.name} helmet`} />
+          <span class="text-xs font-medium">{abbr}</span>
+        </div>
+      ))}
+    </div>
+  </body>
+</html>

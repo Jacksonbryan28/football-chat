@@ -1,6 +1,6 @@
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Markdown } from '../Markdown';
+import { LoadingIndicator } from './LoadingIndicator';
 import { SourceChips } from './SourceChips';
 import type { Message } from './types';
 
@@ -22,11 +22,7 @@ export function MessageBubble({ message: m }: { message: Message }) {
         {isUser || isError ? (
           m.content
         ) : m.status === 'pending' ? (
-          <div className="flex flex-col gap-2 py-1" role="status">
-            <span className="sr-only">{m.tools.length ? 'Looking that up…' : 'Thinking…'}</span>
-            <Skeleton className="h-3.5 w-56" />
-            <Skeleton className="h-3.5 w-36" />
-          </div>
+          <LoadingIndicator teams={m.teams} lookingUp={m.tools.length > 0} />
         ) : (
           <Markdown text={m.content} />
         )}

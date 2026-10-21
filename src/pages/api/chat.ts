@@ -3,6 +3,7 @@ import { isStepCount, streamText, type ModelMessage } from 'ai';
 import { z } from 'zod';
 import { getModel } from '../../lib/model';
 import { buildSystemPrompt } from '../../lib/prompt';
+import { teamsFromToolInput, teamsFromToolResult } from '../../lib/teamHints';
 import { footballTools } from '../../lib/tools';
 
 export const prerender = false;
@@ -26,11 +27,13 @@ const body = z.object({
 //   {type:'text', text}      a piece of the answer
 //   {type:'reset'}           the model is about to call a tool; drop any text so far
 //   {type:'tool', name, input}   a tool is being used (shown as a source chip)
+//   {type:'teams', teams}    team abbreviations the current lookup is about (drives the loading helmet)
 //   {type:'error', message}  something went wrong (message is safe to show)
 type Event =
   | { type: 'text'; text: string }
   | { type: 'reset' }
   | { type: 'tool'; name: string; input: unknown }
+  | { type: 'teams'; teams: string[] }
   | { type: 'error'; message: string };
 
 function friendlyError(err: unknown): string {
@@ -70,6 +73,11 @@ export const POST: APIRoute = async ({ request }) => {
           } else if (part.type === 'tool-call') {
             send({ type: 'reset' });
             send({ type: 'tool', name: part.toolName, input: part.input });
+            const teams = teamsFromToolInput(part.input);
+            if (teams.length) send({ type: 'teams', teams });
+          } else if (part.type === 'tool-result') {
+            const teams = teamsFromToolResult(part.output);
+            if (teams.length) send({ type: 'teams', teams });
           } else if (part.type === 'error') {
             console.error('chat stream error:', part.error);
             send({ type: 'error', message: friendlyError(part.error) });
