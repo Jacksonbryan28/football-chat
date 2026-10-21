@@ -92,7 +92,7 @@ src/pages/index.astro   Chat page shell (renders the React chat)
 src/components/Chat.tsx The chat screen: owns the input box, wires the pieces together
 src/components/chat/    The chat's pieces: useChatStream (streaming and state), MessageList,
                         MessageBubble, SourceChips, Composer, ExampleQuestions, header and footer
-src/components/TeamHelmet.tsx  Football helmet that wears a team's colors (also animates while loading)
+src/components/TeamHelmet.tsx  Pixel-art helmet in a team's colors (animates while loading)
 src/components/ui/      shadcn components (button, textarea, badge, skeleton)
 src/styles/global.css   Tailwind, theme tokens and markdown styles
 src/pages/api/chat.ts   Chat route: streams the model's answer and tool use

@@ -29,7 +29,7 @@ export function LoadingIndicator({ teams, lookingUp }: { teams: string[]; lookin
             <TeamHelmet key="b" team={teams[1]} size={34} animation="clash" flip />
           </>
         ) : (
-          <TeamHelmet key="a" team={teams[0]} size={48} animation="bob" />
+          <TeamHelmet key="a" team={teams[0]} size={51} animation="bob" />
         )}
       </div>
       <div className="flex min-w-0 flex-col gap-2">

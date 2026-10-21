@@ -14,14 +14,42 @@ ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "data" / "nfl.db"
 OUT = ROOT / "src" / "lib" / "teamColors.ts"
 
-# abbreviation -> any of {"shell", "stripe", "accent"} to replace
+# abbreviation -> any of {"shell", "stripe", "accent", "mask", "ear"} to replace
 OVERRIDES: dict[str, dict[str, str]] = {}
+
+FALLBACK_MASK = "#A5ACAF"  # silver, for teams with no usable second color
+DARK_EAR = "#242A30"
+
+
+def luminance(hex_color: str) -> float:
+    """Relative luminance, 0 (black) to 1 (white)."""
+    r, g, b = (int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5))
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def mix_with_white(hex_color: str, amount: float) -> str:
+    channels = [int(hex_color[i : i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(c + (255 - c) * amount):02X}" for c in channels)
+
+
+def pick_mask(shell: str, candidates: list[str]) -> str:
+    """First team color that stands out from the shell and isn't near-black."""
+    for color in candidates:
+        if color and luminance(color) >= 0.12 and abs(luminance(color) - luminance(shell)) >= 0.08:
+            return color.upper()
+    return FALLBACK_MASK
+
+
+def pick_ear(shell: str) -> str:
+    """Dark ear hole, or a lightened shell color when the shell itself is very dark."""
+    return mix_with_white(shell, 0.22) if luminance(shell) < 0.06 else DARK_EAR
 
 
 def main() -> None:
     with sqlite3.connect(DB) as conn:
         rows = conn.execute(
-            "SELECT team_abbr, team_name, team_color, team_color2, team_color3 FROM teams ORDER BY team_abbr"
+            "SELECT team_abbr, team_name, team_color, team_color2, team_color3, team_color4 FROM teams ORDER BY team_abbr"
         ).fetchall()
 
     lines = [
@@ -33,16 +61,21 @@ def main() -> None:
         "  shell: string; // main helmet color",
         "  stripe: string; // stripe and secondary color",
         "  accent: string; // third color, falls back to the stripe color",
+        "  mask: string; // facemask: first team color that stands out from the shell",
+        "  ear: string; // ear hole",
         "}",
         "",
         "export const TEAM_COLORS: Record<string, TeamColors> = {",
     ]
-    for abbr, name, c1, c2, c3 in rows:
+    for abbr, name, c1, c2, c3, c4 in rows:
         colors = {"shell": c1.upper(), "stripe": c2.upper(), "accent": (c3 or c2).upper()}
+        colors["mask"] = pick_mask(colors["shell"], [c2, c3, c4])
+        colors["ear"] = pick_ear(colors["shell"])
         colors.update(OVERRIDES.get(abbr, {}))
         lines.append(
             f'  {abbr}: {{ name: "{name}", shell: "{colors["shell"]}", '
-            f'stripe: "{colors["stripe"]}", accent: "{colors["accent"]}" }},'
+            f'stripe: "{colors["stripe"]}", accent: "{colors["accent"]}", '
+            f'mask: "{colors["mask"]}", ear: "{colors["ear"]}" }},'
         )
     lines.append("};")
     lines.append("")
