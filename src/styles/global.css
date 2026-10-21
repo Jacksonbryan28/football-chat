@@ -166,7 +166,19 @@
     40%, 55% { transform: translateX(-5px) rotate(-3deg); }
   }
 
+  /* Build animation: each pixel slides down into place from above. Each pixel's animation-delay
+     sets its turn (bottom row first). Plays once; the pixels then stay put. */
+  .helmet-px {
+    --helmet-drop-duration: 260ms;
+    animation: helmet-drop var(--helmet-drop-duration) cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+  @keyframes helmet-drop {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    .helmet-px { animation: none; }
     .helmet-bob, .helmet-clash { animation: none; }
     .helmet-fill, .helmet-stroke { transition: none; }
   }

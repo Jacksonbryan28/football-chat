@@ -44,6 +44,18 @@ const RECTS = PIXELS.flatMap((line, y) =>
 
 const FILL: Record<string, string> = { '#': 'var(--helmet-shell)', M: 'var(--helmet-mask)', E: 'var(--helmet-ear)' };
 
+// Order for the "build" animation, one entry per pixel: bottom row first, working up
+// and left to right, so the helmet is stacked from the bottom. Each pixel slides down
+// into its spot from above (see helmet-drop in src/styles/global.css).
+const BUILD_ORDER = PIXELS.flatMap((line, y) => [...line].map((kind, x) => ({ kind, x, y })))
+  .filter((p) => p.kind !== '.')
+  .sort((a, b) => b.y - a.y || a.x - b.x);
+
+// Delay between one pixel starting to drop in and the next. The full build takes about
+// BUILD_ORDER.length * BUILD_STEP_MS plus the drop itself (--helmet-drop-duration in
+// src/styles/global.css).
+const BUILD_STEP_MS = 10;
+
 export type HelmetAnimation = 'none' | 'bob' | 'clash';
 
 interface TeamHelmetProps {
@@ -52,6 +64,9 @@ interface TeamHelmetProps {
   size?: number;
   /** none: still. bob: gentle thinking motion. clash: lunges forward, for two helmets facing each other. */
   animation?: HelmetAnimation;
+  /** Load the helmet in pixel by pixel, each pixel dropping into place from above, top to bottom.
+   *  Plays once when the helmet first appears and then stays put. Can be combined with `animation`. */
+  build?: boolean;
   /** Face left instead of right. */
   flip?: boolean;
   /** Accessible name. Leave out when the team name is shown in text next to it. */
@@ -59,7 +74,7 @@ interface TeamHelmetProps {
   className?: string;
 }
 
-export function TeamHelmet({ team, size = 51, animation = 'none', flip = false, label, className }: TeamHelmetProps) {
+export function TeamHelmet({ team, size = 51, animation = 'none', build = false, flip = false, label, className }: TeamHelmetProps) {
   const colors = (team && TEAM_COLORS[team]) || NEUTRAL;
 
   const style = {
@@ -87,9 +102,21 @@ export function TeamHelmet({ team, size = 51, animation = 'none', flip = false, 
           filter: 'drop-shadow(0 0 0.5px var(--helmet-outline, rgb(128 128 128 / 0.8)))',
         }}
       >
-        {RECTS.map((r, i) => (
-          <rect key={i} x={r.x} y={r.y} width={r.width} height={1} className="helmet-fill" style={{ fill: FILL[r.kind] }} />
-        ))}
+        {build
+          ? BUILD_ORDER.map((p, i) => (
+              <rect
+                key={i}
+                x={p.x}
+                y={p.y}
+                width={1}
+                height={1}
+                className="helmet-fill helmet-px"
+                style={{ fill: FILL[p.kind], animationDelay: `${i * BUILD_STEP_MS}ms` }}
+              />
+            ))
+          : RECTS.map((r, i) => (
+              <rect key={i} x={r.x} y={r.y} width={r.width} height={1} className="helmet-fill" style={{ fill: FILL[r.kind] }} />
+            ))}
       </svg>
     </span>
   );
